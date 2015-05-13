@@ -1,18 +1,23 @@
 package net.prasenjit.poc.nashorn;
 
-import com.gemstone.gemfire.cache.Cache;
-import com.gemstone.gemfire.cache.CacheFactory;
-import com.gemstone.gemfire.cache.RegionShortcut;
+import java.util.Set;
+
+import javax.script.ScriptEngine;
+import javax.script.ScriptEngineManager;
+
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Bean;
 import org.springframework.data.gemfire.support.GemfireCacheManager;
 import org.springframework.scheduling.annotation.EnableAsync;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
 
-import javax.script.ScriptEngine;
-import javax.script.ScriptEngineManager;
+import com.gemstone.gemfire.cache.Region;
+import com.gemstone.gemfire.cache.client.ClientCache;
+import com.gemstone.gemfire.cache.client.ClientCacheFactory;
+import com.gemstone.gemfire.cache.client.ClientRegionShortcut;
 
 @SpringBootApplication
 @EnableAsync
@@ -20,30 +25,39 @@ import javax.script.ScriptEngineManager;
 @EnableTransactionManagement
 public class NashornDemoApplication {
 
-    public static void main(String[] args) {
-        SpringApplication.run(NashornDemoApplication.class, args);
-    }
+	public static void main(String[] args) {
+		SpringApplication.run(NashornDemoApplication.class, args);
+	}
 
-    @Bean
-    public Cache gemfireCache() {
-        Cache cache = new CacheFactory()
-                .set("mcast-port", "0")
-                .create();
-        cache.createRegionFactory(RegionShortcut.LOCAL).create("compiledScripts");
-        cache.createRegionFactory(RegionShortcut.LOCAL).create("region1");
-        cache.createRegionFactory(RegionShortcut.LOCAL).create("region2");
-        return cache;
-    }
+	@Bean
+	public ClientCache gemfireCache() {
+		ClientCache cache = new ClientCacheFactory()
+//				.setPdxSerializer(new ReflectionBasedAutoSerializer())
+				.setPoolSubscriptionEnabled(true)
+				.addPoolLocator("localhost", 10334).create();
+		cache.createClientRegionFactory(ClientRegionShortcut.PROXY).create("personalizationRules");
+		cache.createClientRegionFactory(ClientRegionShortcut.LOCAL).create("compiledScripts");
+		return cache;
+	}
 
-    @Bean
-    public GemfireCacheManager cacheManager(Cache cache){
-        GemfireCacheManager cacheManager = new GemfireCacheManager();
-        cacheManager.setCache(cache);
-        return cacheManager;
-    }
+	@Bean
+	public GemfireCacheManager cacheManager(ClientCache cache) {
+		GemfireCacheManager cacheManager = new GemfireCacheManager();
+		Set<Region<?, ?>> regions = cache.rootRegions();
+		cacheManager.setRegions(regions);
+		return cacheManager;
+	}
 
-    @Bean
-    public ScriptEngine scriptEngine(){
-        return new ScriptEngineManager().getEngineByName("Nashorn");
-    }
+	@Bean
+	public ScriptEngine scriptEngine() {
+		return new ScriptEngineManager().getEngineByName("Nashorn");
+	}
+
+	@Bean
+	public PlatformTransactionManager transactionManager(ClientCache cache) {
+		ClientCacheTransactionManager transactionManager = new ClientCacheTransactionManager(cache);
+		transactionManager.setCopyOnRead(false);
+		return transactionManager;
+	}
+	
 }

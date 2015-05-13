@@ -1,0 +1,5 @@
+function func2(){
+    return "return from function " + input;
+}
+
+func2();
