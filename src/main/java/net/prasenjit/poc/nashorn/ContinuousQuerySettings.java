@@ -23,7 +23,7 @@ public class ContinuousQuerySettings {
 	private ApplicationContext applicationContext;
 
 	@Bean
-	public ContinuousQueryListenerContainer containet(RegionService cache) {
+	public ContinuousQueryListenerContainer container(RegionService cache) {
 		ContinuousQueryListenerContainer container = new ContinuousQueryListenerContainer();
 		container.setCache(cache);
 		container.setAutoStartup(true);
